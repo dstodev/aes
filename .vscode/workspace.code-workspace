@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "..",
+			"name": "CST_466 Project ii: AES"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			".vscode/ipch": true,
+		},
+		"files.associations": {
+			".clang-format": "yaml",
+			"windows.h": "c"
+		},
+		// Extension settings
+		"cmake.buildDirectory": "${workspaceRoot}/build",
+		"cmake.debugConfig": {
+			"cwd": "${workspaceRoot}/build"
+		},
+		"cmake.configureOnOpen": false
+	}
+}
