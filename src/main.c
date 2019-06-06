@@ -8,5 +8,7 @@ int main(int argc, char * argv[])
 		printf("%2d. %s\n", i, argv[i]);
 	}
 
+	encrypt("this is a test, lmao", "this is a key");
+
 	return 0;
 }
