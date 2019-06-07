@@ -14,6 +14,7 @@ typedef uint8_t state_t[4][4];
 typedef struct aes_data_t
 {
 	state_t state;
+	uint8_t key[AES_KEY_LEN];
 	uint8_t (*blocks)[AES_BLOCK_LEN];
 	size_t numBlocks;
 	uint8_t roundKey[AES_EXPANDED_KEY_LEN];
@@ -69,20 +70,20 @@ uint8_t * encrypt(const char * message, const char * key)
 	initData(&data, message, key);
 
 	// First round
-	addRoundKey(&data);
+	addRoundKey(&data, 0);
 
 	// Rounds 1 to N-1
-	for (int i = 0; i < AES_ROUNDS; ++i) {
+	for (int i = 1; i <= AES_ROUNDS; ++i) {
 		subBytes(&data);
 		shiftRows(&data);
 		mixColumns(&data);
-		addRoundKey(&data);
+		addRoundKey(&data, i);
 	}
 
 	// Final round
 	subBytes(&data);
 	shiftRows(&data);
-	addRoundKey(&data);
+	addRoundKey(&data, AES_ROUNDS + 1);
 
 	freeData(&data);
 	return 0;
@@ -90,23 +91,23 @@ uint8_t * encrypt(const char * message, const char * key)
 
 uint8_t * decrypt(const char * cipher, const char * key)
 {
-	aes_data_t data;
+	// aes_data_t data;
 
-	// First round
-	addRoundKey(&data);
+	// // First round
+	// addRoundKey(&data);
 
-	// Rounds 1 to N-1
-	for (int i = 0; i < AES_ROUNDS; ++i) {
-		invShitfRows(&data);
-		invSubBytes(&data);
-		addRoundKey(&data);
-		invMixColumns(&data);
-	}
+	// // Rounds 1 to N-1
+	// for (int i = 0; i < AES_ROUNDS; ++i) {
+	// 	invShitfRows(&data);
+	// 	invSubBytes(&data);
+	// 	addRoundKey(&data);
+	// 	invMixColumns(&data);
+	// }
 
-	// Final round
-	invShitfRows(&data);
-	invSubBytes(&data);
-	addRoundKey(&data);
+	// // Final round
+	// invShitfRows(&data);
+	// invSubBytes(&data);
+	// addRoundKey(&data);
 
 	return 0;
 }
@@ -131,8 +132,7 @@ static void initData(aes_data_t * data, const char * message, const char * key)
 		}
 
 		// Assign key
-		memset(data->state, 0, AES_KEY_LEN);
-		memcpy(data->state, key, AES_KEY_LEN);
+		memcpy(data->key, key, AES_KEY_LEN);
 	}
 }
 
@@ -166,13 +166,16 @@ static void addRoundKey(aes_data_t * data, uint8_t round)
 	uint32_t w[4];
 
 	if (data) {
-		// On the first round, take data from the key
-		if (round == 0) {
-			for (int i = 0; i < 4; ++i) {
-				for (int j = 0; j < 4; ++j) {
+		for (int i = 0; i < 4; ++i) {
+			if (round == 0) {
+				// On the first round, take data from the key
+				w[i] = data->key[i] + data->key[i + 4] + data->key[i + 8] + data->key[i + 12];
+			} else {
+				// On subsequent rounds, get w[] via XOR with state array
+				if (0 == i) {
+					w[i] = 0;
 				}
 			}
-		} else {
 		}
 	}
 }
