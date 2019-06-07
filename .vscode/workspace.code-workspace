@@ -11,7 +11,8 @@
 		},
 		"files.associations": {
 			".clang-format": "yaml",
-			"windows.h": "c"
+			"windows.h": "c",
+			"math.h": "c"
 		},
 		// Extension settings
 		"cmake.buildDirectory": "${workspaceRoot}/build",
