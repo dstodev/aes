@@ -6,7 +6,7 @@
 
 #define AES_BLOCK_LEN 16
 #define AES_KEY_LEN 16
-#define AES_EXPANDED_KEY_LEN 176
+#define AES_EXPANDED_KEY_LEN 44
 #define AES_ROUNDS 9
 
 typedef uint8_t state_t[4][4];
@@ -17,7 +17,7 @@ typedef struct aes_data_t
 	uint8_t key[AES_KEY_LEN];
 	uint8_t (*blocks)[AES_BLOCK_LEN];
 	size_t numBlocks;
-	uint8_t roundKey[AES_EXPANDED_KEY_LEN];
+	uint32_t roundKey[AES_EXPANDED_KEY_LEN];
 } aes_data_t;
 
 static const uint8_t sbox[256] = {
@@ -52,15 +52,18 @@ static const uint8_t inverse_sbox[256] = {
     0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61, 0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6,
     0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d};
 
+static const uint8_t rcon[10] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36};
+
 static void initData(aes_data_t * data, const char * message, const char * key);
 static void freeData(aes_data_t * data);
+static void expandKey(aes_data_t * data);
 static void subBytes(aes_data_t * data);
 static void invSubBytes(aes_data_t * data);
 static void shiftRows(aes_data_t * data);
 static void invShitfRows(aes_data_t * data);
 static void mixColumns(aes_data_t * data);
 static void invMixColumns(aes_data_t * data);
-static void addRoundKey(aes_data_t * data, uint8_t round);
+static void addRoundKey(aes_data_t * data);
 
 uint8_t * encrypt(const char * message, const char * key)
 {
@@ -69,21 +72,24 @@ uint8_t * encrypt(const char * message, const char * key)
 	// Initialize data struct
 	initData(&data, message, key);
 
+	// Expand key to round key schedule
+	expandKey(&data);
+
 	// First round
-	addRoundKey(&data, 0);
+	addRoundKey(&data);
 
 	// Rounds 1 to N-1
 	for (int i = 1; i <= AES_ROUNDS; ++i) {
 		subBytes(&data);
 		shiftRows(&data);
 		mixColumns(&data);
-		addRoundKey(&data, i);
+		addRoundKey(&data);
 	}
 
 	// Final round
 	subBytes(&data);
 	shiftRows(&data);
-	addRoundKey(&data, AES_ROUNDS + 1);
+	addRoundKey(&data);
 
 	freeData(&data);
 	return 0;
@@ -120,10 +126,13 @@ static void initData(aes_data_t * data, const char * message, const char * key)
 		// Clear state array
 		memset(data->state, 0, AES_BLOCK_LEN);
 
+		// Clear round key schedule
+		memset(data->roundKey, 0, AES_EXPANDED_KEY_LEN);
+
 		// Allocate memory for each block
 		data->numBlocks = (size_t) ceil(strlen(message) / (double) AES_BLOCK_LEN);
 		size = sizeof((*data->blocks)[AES_BLOCK_LEN]) * data->numBlocks;
-		data->blocks = malloc(size);
+		data->blocks = (uint8_t(*)[16]) malloc(size);
 		memset(data->blocks, 0, size);
 
 		// Assign each block according to the input message
@@ -140,6 +149,39 @@ static void freeData(aes_data_t * data)
 {
 	if (data) {
 		free(data->blocks);
+	}
+}
+
+static void expandKey(aes_data_t * data)
+{
+	uint32_t w[4];
+	uint32_t x, y, z;
+
+	for (int i = 0; i < 4; ++i) {
+		// On the first round, take data from the key
+		w[i] = data->key[i] << 24 | data->key[i + 4] << 16 | data->key[i + 8] << 8 | data->key[i + 12];
+	}
+	memcpy(data->roundKey, w, sizeof(w));
+
+	// Apply g function to generate the rest of the words
+	for (int i = 0; i < 40; ++i) {
+		// Rotate previous word
+		x = ((w[3] << 8) | ((w[3] & 0xFF000000) >> 24));
+
+		// Substitute each byte in the word
+		y = 0;
+		for (int j = 0; j < 4; ++j) {
+			y |= sbox[(x & 0xFF << (j * 8)) >> (j * 8)] << (j * 8);
+		}
+
+		// XOR byte with the round constant
+		z = (rcon[i] << 24) ^ y;
+
+		w[0] ^= z;     // w0 ^ z1
+		w[1] ^= w[0];  // w4 ^ w1
+		w[2] ^= w[1];  // w5 ^ w2
+		w[3] ^= w[2];  // w6 ^ w3
+		memcpy(&data->roundKey[(i + 1) * 4], w, sizeof(w));
 	}
 }
 
@@ -161,21 +203,8 @@ static void mixColumns(aes_data_t * data)
 static void invMixColumns(aes_data_t * data)
 {}
 
-static void addRoundKey(aes_data_t * data, uint8_t round)
+static void addRoundKey(aes_data_t * data)
 {
-	uint32_t w[4];
-
 	if (data) {
-		for (int i = 0; i < 4; ++i) {
-			if (round == 0) {
-				// On the first round, take data from the key
-				w[i] = data->key[i] + data->key[i + 4] + data->key[i + 8] + data->key[i + 12];
-			} else {
-				// On subsequent rounds, get w[] via XOR with state array
-				if (0 == i) {
-					w[i] = 0;
-				}
-			}
-		}
 	}
 }
