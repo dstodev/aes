@@ -15,6 +15,6 @@ typedef struct aes_cipher_t
 } aes_cipher_t;
 
 extern aes_cipher_t encrypt(const char * message, const char * key);
-extern aes_cipher_t decrypt(aes_cipher_t cipher, const char * key);
+extern char * decrypt(aes_cipher_t cipher, const char * key);
 
 #endif
