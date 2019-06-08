@@ -142,7 +142,8 @@ char * decrypt(aes_cipher_t cipher, const char * key)
 		initData(&data, cipher.cipher, cipher.cipherLen, key);
 
 		// Allocate memory for cipher text
-		result = (char *) malloc(sizeof(char) * cipher.cipherLen);
+		result = (char *) malloc(sizeof(char) * cipher.cipherLen + 1);
+		memset(result, 0, cipher.cipherLen + 1);
 
 		// Expand key to round key schedule
 		expandKey(&data);
@@ -183,7 +184,7 @@ char * decrypt(aes_cipher_t cipher, const char * key)
 		freeData(&data);
 	}
 
-	return result;
+	return (char *) result;
 }
 
 static void initData(aes_data_t * data, const uint8_t * message, size_t messageLen, const char * key)

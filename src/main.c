@@ -23,6 +23,11 @@ int main()
 
 		message = decrypt(cipher, key);
 		if (message) {
+			for (int i = 0; i < strlen(message); ++i) {
+				printf("%02x ", (unsigned char) message[i]);
+			}
+			printf("\n");
+
 			free(message);
 		}
 		free(cipher.cipher);
