@@ -58,6 +58,7 @@ static const uint8_t inverse_sbox[256] = {
 
 static const uint8_t rcon[10] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36};
 
+static int gfmult(int a, int b);
 static const uint8_t mix_con[4][4] = {{2, 3, 1, 1}, {1, 2, 3, 1}, {1, 1, 2, 3}, {3, 1, 1, 2}};
 
 static void initData(aes_data_t * data, const char * message, const char * key);
@@ -94,7 +95,11 @@ aes_cipher_t encrypt(const char * message, const char * key)
 
 		for (int i = 0; i < data.numBlocks; ++i) {
 			// Populate state with message block
-			memcpy(data.state, data.blocks[i], sizeof(data.state));
+			for (int j = 0; j < 4; ++j) {
+				for (int k = 0; k < 4; ++k) {
+					data.state[j][k] = data.blocks[i][k * 4 + j];
+				}
+			}
 
 			// First round
 			addRoundKey(&data, 0);
@@ -129,23 +134,54 @@ aes_cipher_t decrypt(aes_cipher_t cipher, const char * key)
 	aes_cipher_t result;
 	memset(&result, 0, sizeof(result));
 
-	// aes_data_t data;
+	aes_data_t data;
+	uint8_t * message = cipher.cipher;
+	size_t cipherLen;
 
-	// // First round
-	// addRoundKey(&data);
+	if (message && key) {
+		// Initialize data struct
+		initData(&data, message, key);
 
-	// // Rounds 1 to N-1
-	// for (int i = 0; i < AES_ROUNDS; ++i) {
-	// 	invShitfRows(&data);
-	// 	invSubBytes(&data);
-	// 	addRoundKey(&data);
-	// 	invMixColumns(&data);
-	// }
+		// Allocate memory for cipher text
+		cipherLen = sizeof(uint8_t) * data.numBlocks * AES_BLOCK_LEN;
+		cipher = (uint8_t *) malloc(cipherLen);
+		memset(cipher, 0, cipherLen);
 
-	// // Final round
-	// invShitfRows(&data);
-	// invSubBytes(&data);
-	// addRoundKey(&data);
+		// Expand key to round key schedule
+		expandKey(&data);
+
+		for (int i = 0; i < data.numBlocks; ++i) {
+			// Populate state with message block
+			for (int j = 0; j < 4; ++j) {
+				for (int k = 0; k < 4; ++k) {
+					data.state[j][k] = data.blocks[i][k * 4 + j];
+				}
+			}
+
+			// First round
+			addRoundKey(&data, 0);
+
+			// Rounds 1 to N-1
+			for (uint8_t j = 1; j <= AES_ROUNDS; ++j) {
+				subBytes(&data);
+				shiftRows(&data);
+				mixColumns(&data);
+				addRoundKey(&data, j);
+			}
+
+			// Final round
+			subBytes(&data);
+			shiftRows(&data);
+			addRoundKey(&data, 10);
+
+			// Append data to ciphertext
+			memcpy(&cipher[AES_BLOCK_LEN * i], data.state, sizeof(data.state));
+		}
+
+		freeData(&data);
+		result.cipher = cipher;
+		result.cipherLen = cipherLen;
+	}
 
 	return result;
 }
@@ -185,9 +221,13 @@ static void expandKey(aes_data_t * data)
 	uint32_t x, y, z;
 	uint8_t byte;
 
+	memset(&w, 0, sizeof(w));
 	for (int i = 0; i < 4; ++i) {
 		// On the first round, take data from the key
-		w[i] = data->key[i] << 24 | data->key[i + 4] << 16 | data->key[i + 8] << 8 | data->key[i + 12];
+		for (int j = 0; j < 4; ++j) {
+			w[i] |= data->key[i * 4 + j] << (8 * (3 - j));
+		}
+		// w[i] = data->key[i] << 24 | data->key[i + 4] << 16 | data->key[i + 8] << 8 | data->key[i + 12];
 	}
 	memcpy(data->roundKey, w, sizeof(w));
 
@@ -270,16 +310,39 @@ static void invShitfRows(aes_data_t * data)
 	}
 }
 
+int gfmult(int a, int b)
+{
+	const int overflow = 0x100;
+	const int mod = 0x11B;
+
+	int sum = 0;
+	while (b > 0) {
+		if (b & 1) {
+			sum ^= a;
+		}
+		b >>= 1;
+		a <<= 1;
+		if (a & overflow) {
+			a ^= mod;
+		}
+	}
+	return sum;
+}
+
 static void mixColumns(aes_data_t * data)
 {
+	state_t state_copy;
+	memset(&state_copy, 0, sizeof(state_copy));
+
 	if (data) {
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				data->state[j][i] =
-				    ((data->state[0][i] * mix_con[j][0]) ^ (data->state[1][i] * mix_con[j][1]) ^
-				     (data->state[2][i] * mix_con[j][2]) ^ (data->state[3][i] * mix_con[j][3]));
+		for (int x = 0; x < 4; ++x) {
+			for (int y = 0; y < 4; ++y) {
+				for (int z = 0; z < 4; ++z) {
+					state_copy[x][y] ^= gfmult(mix_con[x][z], data->state[z][y]);
+				}
 			}
 		}
+		memcpy(&data->state, &state_copy, sizeof(data->state));
 	}
 }
 
