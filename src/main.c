@@ -5,6 +5,11 @@ Authored by
         Daniel Stotts
  */
 
+#ifdef _WIN32
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +20,10 @@ static void print_hex(const char * message, size_t len);
 
 int main()
 {
+#ifdef _WIN32
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
 	// AES NIST example key & input
 	const char * key = "\x2b\x7e\x15\x16\x28\xae\xd2\xa6\xab\xf7\x15\x88\x09\xcf\x4f\x3c";
 	const char * input = "\x32\x43\xf6\xa8\x88\x5a\x30\x8d\x31\x31\x98\xa2\xe0\x37\x07\x34";
