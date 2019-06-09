@@ -128,7 +128,11 @@ aes_cipher_t encrypt(const char * message, const char * key)
 			addRoundKey(&data, 10);
 
 			// Append data to ciphertext
-			memcpy(&cipher[AES_BLOCK_LEN * i], data.state, sizeof(data.state));
+			for (int j = 0; j < 4; ++j) {
+				for (int k = 0; k < 4; ++k) {
+					cipher[i * AES_BLOCK_LEN + j * 4 + k] = data.state[k][j];
+				}
+			}
 		}
 
 		freeData(&data);
@@ -159,7 +163,7 @@ char * decrypt(aes_cipher_t cipher, const char * key)
 			// Populate state with message block
 			for (int j = 0; j < 4; ++j) {
 				for (int k = 0; k < 4; ++k) {
-					data.state[j][k] = data.blocks[i][j * 4 + k];
+					data.state[j][k] = data.blocks[i][k * 4 + j];
 				}
 			}
 
@@ -182,10 +186,9 @@ char * decrypt(aes_cipher_t cipher, const char * key)
 			// Append data to ciphertext
 			for (int j = 0; j < 4; ++j) {
 				for (int k = 0; k < 4; ++k) {
-					result[j * 4 + k] = data.state[k][j];
+					result[i * AES_BLOCK_LEN + j * 4 + k] = data.state[k][j];
 				}
 			}
-			// memcpy(&result[AES_BLOCK_LEN * i], data.state, sizeof(data.state));
 		}
 
 		freeData(&data);

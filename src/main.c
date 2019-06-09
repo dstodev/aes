@@ -32,7 +32,7 @@ int main()
 	char * message = 0;
 
 	// Print input before processing
-	print_hex(input, 16);
+	print_hex(input, strlen(input));
 
 	cipher = encrypt(input, key);
 	if (cipher.cipherLen) {
