@@ -1,3 +1,10 @@
+/*
+Authored by
+        Jorge Hernandez
+        Colton Morris
+        Daniel Stotts
+ */
+
 #include "aes.h"
 
 #include <math.h>

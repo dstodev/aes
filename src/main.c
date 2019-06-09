@@ -1,3 +1,10 @@
+/*
+Authored by
+        Jorge Hernandez
+        Colton Morris
+        Daniel Stotts
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

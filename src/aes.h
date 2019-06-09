@@ -1,3 +1,10 @@
+/*
+Authored by
+        Jorge Hernandez
+        Colton Morris
+        Daniel Stotts
+ */
+
 #ifndef AES_IMPL_H
 #define AES_IMPL_H
 
